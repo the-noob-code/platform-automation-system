@@ -1,0 +1,138 @@
+{
+  "version": "1.0.0",
+  "capability_name": "local_app_login",
+  "description": "Signs into a web banking application and opens its account page.",
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "username": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "username",
+      "password"
+    ]
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "steps": [
+    {
+      "step_id": "enter_username__text",
+      "intent": "Type username",
+      "action_type": "type_text",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//input[@name='username']",
+          "name": null,
+          "role": null,
+          "tag": null,
+          "x": null,
+          "y": null,
+          "width": null,
+          "height": null
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "username",
+          "role": null,
+          "tag": "input",
+          "x": 607.0,
+          "y": 305.0,
+          "width": 146.0,
+          "height": 18.0
+        },
+        "robustness_reasoning": "Uses the strongest observed field attribute first, with a distinct metadata fallback when available."
+      },
+      "value_ref": "${input.username}",
+      "output_ref": null,
+      "checkpoint": null,
+      "is_risky": false
+    },
+    {
+      "step_id": "enter_password__password",
+      "intent": "Type password",
+      "action_type": "type_text",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//input[@name='password']",
+          "name": null,
+          "role": null,
+          "tag": null,
+          "x": null,
+          "y": null,
+          "width": null,
+          "height": null
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "password",
+          "role": null,
+          "tag": "input",
+          "x": 607.0,
+          "y": 353.0,
+          "width": 146.0,
+          "height": 18.0
+        },
+        "robustness_reasoning": "Uses the strongest observed field attribute first, with a distinct metadata fallback when available."
+      },
+      "value_ref": "${input.password}",
+      "output_ref": null,
+      "checkpoint": null,
+      "is_risky": false
+    },
+    {
+      "step_id": "click_login",
+      "intent": "Click Log In",
+      "action_type": "click",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//input[@type='submit' and @value='Log In']",
+          "name": null,
+          "role": null,
+          "tag": null,
+          "x": null,
+          "y": null,
+          "width": null,
+          "height": null
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "Log In",
+          "role": null,
+          "tag": "input",
+          "x": 607.0,
+          "y": 382.0625,
+          "width": 66.453125,
+          "height": 19.0
+        },
+        "robustness_reasoning": "Targets the observed form submit control, not recovery links."
+      },
+      "value_ref": null,
+      "output_ref": null,
+      "checkpoint": null,
+      "is_risky": false
+    }
+  ],
+  "global_success_condition": {
+    "type": "text_exists",
+    "target": null,
+    "value": "__authenticated_landing__"
+  },
+  "error_handling": {
+    "expected_business_outcomes": [],
+    "recoverable_conditions": []
+  }
+}

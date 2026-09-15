@@ -1,0 +1,523 @@
+PLATFORM AUTOMATION SYSTEM
+PROBLEM AND FIX REPORT
+
+Historical scope: Recorded Copilot sessions from September 13-14, 2026.
+
+This report summarizes the problems encountered during discovery, replay,
+human-in-the-loop execution, credential handling, generic login support,
+and local/ParaBank environment switching. It distinguishes completed fixes
+from remaining concerns.
+
+
+1. SCRUBBER REMOVED USEFUL LOGIN INFORMATION
+
+Issue:
+The discovery agent could not reliably identify the login fields. Labels such
+as "Member ID:" and "PIN:" were replaced with "[REDACTED_SECRET]".
+
+What broke:
+The perception layer no longer exposed enough information for the discovery
+agent to distinguish the username and PIN fields. Discovery either selected
+the wrong elements or failed to create useful artifact steps.
+
+Root cause:
+The scrubber treated UI labels as sensitive values instead of separating
+structural labels from the actual credential contents.
+
+Fix:
+The scrubber was adjusted so structural UI labels remain available while
+actual secret values remain protected.
+
+Result:
+The agent could understand the login form without exposing credential values.
+
+Relevant areas:
+src/discovery/scrubber.py
+src/discovery/perception.py
+src/discovery/agent.py
+
+
+2. DISCOVERY BECAME STUCK REPEATING "TYPE ID"
+
+Issue:
+Discovery repeatedly reported: "Agent decided: Type ID".
+
+What broke:
+The discovery state machine did not advance after recording the first input
+action. It kept interpreting the same page state as requiring the ID field
+again.
+
+Root cause:
+The completed action state was not being used consistently to select the next
+step.
+
+Fix:
+The discovery flow was changed to advance through a deterministic sequence:
+
+1. Username or member ID
+2. Password or PIN
+3. Login action
+4. Post-login authenticated state
+
+Duplicate or already-completed actions are now skipped.
+
+Result:
+Discovery progresses from ID to PIN/password and then to login instead of
+repeatedly recording the same action.
+
+
+3. REPLAY COULD NOT FIND LEGACY LOGIN FIELDS
+
+Issue:
+Replay failed with an error similar to:
+"Could not locate element: None".
+
+What broke:
+Older artifacts used labels such as "Member ID:" and "PIN:" instead of
+stable HTML locators. The replay engine did not know how to translate those
+legacy labels into the actual table inputs.
+
+Root cause:
+The executor assumed that every artifact target contained a directly usable
+locator.
+
+Fix:
+Replay received fallback resolution logic for legacy labels. The artifact
+compiler also began retaining more stable locator information, including
+placeholders and observed input metadata. Duplicate actions were removed
+during artifact compilation.
+
+Result:
+Existing artifacts can still be replayed even when they contain older
+label-based targets.
+
+Relevant areas:
+src/executor/adapter.py
+src/discovery/artifact_compiler.py
+src/models/artifact.py
+
+
+4. INPUT VARIABLES WERE PARSED INCORRECTLY
+
+Issue:
+Replay stayed on the login page and submitted empty credentials.
+
+What broke:
+The variable reference:
+
+${input.member_id}
+
+was parsed incorrectly as:
+
+member_id}
+
+The closing brace became part of the variable name, so lookup failed and the
+executor received an empty value.
+
+Root cause:
+The variable-reference parser did not correctly remove both delimiters from
+the ${input.name} syntax.
+
+Fix:
+Variable-reference parsing in the executor was corrected so the complete
+${input.name} format is interpreted properly.
+
+Result:
+Credential values are resolved from the supplied input dictionary and entered
+into the correct fields.
+
+Relevant area:
+src/executor/engine.py
+
+
+5. TRANSACTION HISTORY WAS NOT OPENED AFTER LOGIN
+
+Issue:
+The system logged in successfully but stopped on the authenticated landing
+page instead of opening transaction history.
+
+What broke:
+The discovery artifact did not contain a post-login navigation step. The
+success checkpoint expected the wrong state.
+
+Root cause:
+The discovery goal, artifact steps, and final verification condition were
+not aligned.
+
+Fix:
+A transaction-history action and corresponding success checkpoint were added.
+Duplicate checkpoint matching was also corrected.
+
+Result:
+For the local application, replay could log in and navigate to the
+transaction history page.
+
+Later adjustment:
+During ParaBank testing, it became clear that the target application did not
+provide a simple read-only transaction-history page. It used a more complex,
+search-based account page. The expected result was changed from opening
+transaction history to successfully reaching the authenticated landing page.
+
+
+6. ARTIFACT SCHEMA WAS INVALID
+
+Issue:
+A generated artifact could crash the replay engine before the browser opened.
+
+What broke:
+The artifact inputs_schema did not correctly declare required inputs such as
+member_id and pin. Some artifacts also contained duplicate input actions.
+
+Root cause:
+Artifact compilation did not consistently synchronize the input schema with
+the generated steps and their variable references.
+
+Fix:
+The artifact compiler was updated to:
+
+- Declare required input fields correctly.
+- Deduplicate semantically identical input steps.
+- Preserve the strongest available locator.
+- Keep input references consistent with the schema.
+
+Result:
+Artifacts became valid inputs for the replay engine and no longer failed
+immediately during validation or startup.
+
+Relevant area:
+src/discovery/artifact_compiler.py
+
+
+7. CORRECT CREDENTIALS WERE ERASED DURING REPLAY
+
+Issue:
+The system entered the correct credentials and then erased them.
+
+What broke:
+The discovery model produced an additional type_text action without a bound
+value. Replay executed that action with an empty string, overwriting the
+correct credential.
+
+Root cause:
+Unbound form actions were allowed into the artifact and replay path.
+
+Fix:
+Unbound form actions are ignored during discovery and artifact compilation.
+Only actions with valid input references or intentional values are replayed.
+
+Result:
+Replay no longer clears credentials after entering them.
+
+
+8. PARABANK LOGIN SELECTED THE WRONG CONTROL
+
+Issue:
+The ParaBank run became stuck during login.
+
+What broke:
+Discovery selected controls too broadly based on visible text and could choose
+unrelated links, such as recovery or registration links, instead of the actual
+login submit control.
+
+Root cause:
+Login control selection relied too heavily on text matching and did not give
+sufficient priority to the real form submit control.
+
+Fix:
+Login discovery was made more deterministic:
+
+1. Detect the username field.
+2. Detect the password field.
+3. Select the actual submit control.
+4. Verify the authenticated landing state.
+
+The submit action now prioritizes observed form controls such as the Log In
+input or button.
+
+Result:
+The login flow no longer depends on site-specific link ordering or accidental
+text matches.
+
+
+9. LOGIN DISCOVERY WAS TOO SITE-SPECIFIC
+
+Issue:
+The original implementation relied on fixed labels such as "Member ID" and
+"PIN".
+
+What broke:
+The approach worked for the local application but did not generalize to other
+login pages, including ParaBank.
+
+Root cause:
+The discovery logic was based on application vocabulary instead of common
+HTML form semantics.
+
+Fix:
+Login field discovery now uses common metadata:
+
+- name
+- type
+- placeholder
+- autocomplete
+- associated labels
+- password input type
+- submit-control metadata
+
+The implementation no longer relies exclusively on the words "Member ID" or
+"PIN".
+
+Result:
+The same discovery flow can support conventional username/password pages as
+well as the original local application.
+
+Relevant areas:
+src/discovery/agent.py
+src/discovery/perception.py
+
+
+10. INVALID CREDENTIALS CAUSED A CRASH
+
+Issue:
+When the target application rejected an invalid member ID or PIN, automation
+continued and eventually crashed or incorrectly proceeded toward the history
+state.
+
+What broke:
+The adapter did not inspect the page for visible application-level errors after
+login. It only checked whether the expected next state appeared.
+
+Root cause:
+Business errors from the target application were not treated as explicit
+execution outcomes.
+
+Fix:
+After login, the adapter now checks for visible error messages, including
+application error elements such as .err.
+
+When invalid credentials are detected, execution:
+
+1. Stops immediately.
+2. Converts the technical failure into a readable message.
+3. Escalates to human intervention when appropriate.
+
+Result:
+Invalid login details are handled as a business outcome instead of an
+unhandled automation crash.
+
+Example readable message:
+"The member ID or PIN was rejected."
+
+
+11. HUMAN INTERVENTION DID NOT RESUME EXECUTION
+
+Issue:
+The application correctly handed control to a human, but after the human
+corrected the member ID, execution did not continue.
+
+What broke:
+The HITL flow was waiting for terminal input instead of waiting for the
+shared browser/API resume mechanism.
+
+Root cause:
+The human intervention state and the resume request were not connected through
+the same asynchronous event.
+
+Fix:
+The intervention tracker now uses a shared asynchronous resume event. The
+/api/resume endpoint signals that event, and the executor retries the failed
+step after the human correction.
+
+Result:
+The intended flow now works:
+
+1. Automation encounters a recoverable problem.
+2. The browser enters HITL mode.
+3. A human corrects the data.
+4. The human clicks resume.
+5. The failed step is retried.
+6. Automation continues.
+
+Relevant area:
+src/server/state.py
+
+
+12. HITL STATE WAS NOT VISIBLE ENOUGH
+
+Issue:
+The operator could not easily tell that the browser was waiting for human
+input.
+
+What broke:
+The system paused execution, but the live browser did not provide a strong
+visual indication.
+
+Fix:
+The browser now displays:
+
+- A red outline around the Chromium page.
+- A red intervention panel.
+- The failed step.
+- A readable reason.
+- A Resume automation button.
+
+The overlay is removed after resumption.
+
+Result:
+The operator can see exactly when intervention is required and can resume from
+the browser directly.
+
+Relevant area:
+src/server/state.py
+
+
+13. FALSE HITL PAUSE DURING FINAL VERIFICATION
+
+Issue:
+After login and successful navigation, the system still escalated at "final
+verification".
+
+What broke:
+The final checkpoint was too strict. It expected an exact transaction-history
+label or URL, but the page could legitimately indicate success through a
+different authenticated landing route.
+
+Root cause:
+The checkpoint encoded one site's navigation structure as the universal
+success condition.
+
+Fix:
+Final verification was broadened to accept:
+
+- A visible History link.
+- A link whose URL contains history.
+- A current URL containing history.
+- A generic authenticated landing state for applications without a history
+  page.
+
+Navigation waiting was also disabled in the relevant click paths to avoid
+treating normal page transitions as failures.
+
+Result:
+Successful authenticated states are no longer incorrectly escalated as HITL
+failures.
+
+
+14. LOGOUT WAS MISSING OR POLLUTING THE ARTIFACT
+
+Issue:
+Discovery remained logged in after recording the flow. There was also concern
+that logout was being stored as part of the reusable capability artifact.
+
+What broke:
+The artifact represented cleanup behavior as if logout were part of the
+business capability. This made the recorded flow less accurate.
+
+Fix:
+Logout is now performed after discovery and replay as cleanup. It is not
+recorded as a reusable artifact step.
+
+Result:
+The artifact describes the actual capability while the browser session is
+reset between runs.
+
+
+15. ENVIRONMENT CHANGES WERE IGNORED
+
+Issue:
+Changing values in .env did not affect execution. The application continued
+using an older value.
+
+What broke:
+load_dotenv() does not override environment variables that already exist in
+the shell by default. Previously exported variables therefore took precedence
+over the project .env.
+
+Root cause:
+The environment-loading behavior was not explicit about precedence.
+
+Fix:
+The project .env is loaded explicitly with override behavior:
+
+load_dotenv(env_path, override=True)
+
+Result:
+Values changed in the project .env are used even when stale variables already
+exist in the shell environment.
+
+Relevant area:
+src/main.py
+
+
+16. LOCAL AND PARABANK CONFIGURATION WERE MIXED
+
+Issue:
+Testing ParaBank required manually changing URLs and credentials, increasing
+the risk of using the wrong environment values.
+
+What broke:
+The application had one shared configuration path instead of separate
+target-specific configuration.
+
+Fix:
+An APP_TARGET flag was added.
+
+Example values:
+
+APP_TARGET="local"
+APP_TARGET="parabank"
+
+Each target now has separate configuration for:
+
+- Target URL
+- Discovery username
+- Discovery password
+- Replay username
+- Replay password
+
+Supported values are validated, and invalid values produce a clear
+configuration error.
+
+Result:
+The same automation system can switch between local and ParaBank runs without
+changing the code.
+
+Relevant area:
+src/main.py
+
+
+VALIDATION EVIDENCE
+
+The recorded evidence shows:
+
+- Discovery completed the basic local flow:
+  - Type username
+  - Type password
+  - Click Log In
+- Replay completed successfully with:
+  {"status": "success", "data": {}}
+- Python compilation and focused probes were used during several fixes.
+- A focused locator fallback test was added in:
+  tests/test_main_locator_fallbacks.py
+
+The saved local artifact contains username, password, and login steps with a
+generic authenticated landing checkpoint.
+
+
+REMAINING CONCERNS
+
+1. ParaBank credentials were rejected during at least one replay attempt. This
+   was treated as a credential or configuration issue rather than a locator
+   issue.
+
+2. The artifact description and success condition should remain consistent with
+   the newer generic authenticated-landing behavior. The saved artifact still
+   contains wording about opening a history page even though the success
+   condition is now generic.
+
+3. The initial September 13 session contains only "Fix the attached problem"
+   and does not contain enough stored detail to reconstruct that issue
+   reliably.
+
+4. The recorded sessions show focused validation, but a complete end-to-end
+   test-suite result was not preserved for every later change.

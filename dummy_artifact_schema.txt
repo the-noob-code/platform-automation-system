@@ -1,0 +1,665 @@
+PLATFORM AUTOMATION SYSTEM
+DUMMY ARTIFACT SCHEMA AND DESIGN EXPLANATION
+
+Purpose
+-------
+This document shows a complete example of a capability artifact and explains
+why each field exists. The example represents a small account-search workflow:
+
+1. Open the account page.
+2. Enter an account number.
+3. Select an account type.
+4. Submit the search.
+5. Read the resulting account number.
+6. Verify that the results page was reached.
+
+The values are dummy values. They are intended to explain the schema, not to
+be used against a real application.
+
+
+PART 1: COMPLETE DUMMY ARTIFACT
+================================
+
+{
+  "version": "1.0.0",
+  "capability_name": "search_account",
+  "description": "Opens an account search form, submits search criteria, and returns the matching account number.",
+
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "account_number": {
+        "type": "string",
+        "description": "Account number entered into the search form."
+      },
+      "account_type": {
+        "type": "string",
+        "description": "Account category selected from the account-type list."
+      }
+    },
+    "required": [
+      "account_number",
+      "account_type"
+    ]
+  },
+
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "matched_account_number": {
+        "type": "string",
+        "description": "Account number extracted from the result page."
+      }
+    },
+    "required": [
+      "matched_account_number"
+    ]
+  },
+
+  "steps": [
+    {
+      "step_id": "open_account_search",
+      "intent": "Open Account Search",
+      "action_type": "click",
+      "target": {
+        "primary_locator": {
+          "type": "accessibility_role",
+          "value": "link",
+          "name": "Account Search",
+          "role": "link",
+          "tag": "a"
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "Account Search",
+          "role": "link",
+          "tag": "a",
+          "x": 820.0,
+          "y": 210.0,
+          "width": 118.0,
+          "height": 24.0
+        },
+        "robustness_reasoning": "Uses the semantic link role and accessible name first. The captured rectangle is only a last-resort fallback and should be refreshed against the current page before use."
+      },
+      "value_ref": null,
+      "output_ref": null,
+      "checkpoint": {
+        "type": "element_visible",
+        "target": {
+          "primary_locator": {
+            "type": "accessibility_role",
+            "value": "textbox",
+            "name": "Account number",
+            "role": "textbox",
+            "tag": "input"
+          },
+          "fallback_locator": null,
+          "robustness_reasoning": "Confirms that the account search form is visible."
+        },
+        "value": null
+      },
+      "is_risky": false
+    },
+
+    {
+      "step_id": "enter_account_number",
+      "intent": "Type Account Number",
+      "action_type": "type_text",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//input[@name='accountNumber']",
+          "name": "Account number",
+          "role": "textbox",
+          "tag": "input"
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "Account number",
+          "role": "textbox",
+          "tag": "input",
+          "x": 640.0,
+          "y": 280.0,
+          "width": 220.0,
+          "height": 28.0
+        },
+        "robustness_reasoning": "The name-based XPath is stable for normal DOM changes. The spatial fallback preserves the observed control identity and rectangle for cases where the DOM locator is temporarily unavailable."
+      },
+      "value_ref": "${input.account_number}",
+      "output_ref": null,
+      "checkpoint": null,
+      "is_risky": false
+    },
+
+    {
+      "step_id": "select_account_type",
+      "intent": "Select Account Type",
+      "action_type": "select_dropdown",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//select[@name='accountType']",
+          "name": "Account type",
+          "role": "combobox",
+          "tag": "select"
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "Account type",
+          "role": "combobox",
+          "tag": "select",
+          "x": 640.0,
+          "y": 325.0,
+          "width": 220.0,
+          "height": 28.0
+        },
+        "robustness_reasoning": "Uses the select element's name as the primary locator. The coordinate fallback is retained for visual recovery, although a native select should normally be resolved through the DOM."
+      },
+      "value_ref": "${input.account_type}",
+      "output_ref": null,
+      "checkpoint": null,
+      "is_risky": false
+    },
+
+    {
+      "step_id": "submit_account_search",
+      "intent": "Submit Account Search",
+      "action_type": "click",
+      "target": {
+        "primary_locator": {
+          "type": "xpath",
+          "value": "//button[@type='submit' and normalize-space()='Search']",
+          "name": "Search",
+          "role": "button",
+          "tag": "button"
+        },
+        "fallback_locator": {
+          "type": "accessibility_role",
+          "value": "button",
+          "name": "Search",
+          "role": "button",
+          "tag": "button"
+        },
+        "robustness_reasoning": "Targets the actual submit button instead of any nearby text or recovery link. The accessibility-role fallback remains independent from the XPath primary."
+      },
+      "value_ref": null,
+      "output_ref": null,
+      "checkpoint": {
+        "type": "url_match",
+        "target": null,
+        "value": "/account/results"
+      },
+      "is_risky": false
+    },
+
+    {
+      "step_id": "extract_matched_account_number",
+      "intent": "Read Matched Account Number",
+      "action_type": "extract_data",
+      "target": {
+        "primary_locator": {
+          "type": "test_id",
+          "value": "matched-account-number",
+          "name": "Matched account number",
+          "role": "status",
+          "tag": "span"
+        },
+        "fallback_locator": {
+          "type": "ocr_text",
+          "value": "Matched account number",
+          "name": "Matched account number",
+          "role": "status",
+          "tag": "span"
+        },
+        "robustness_reasoning": "Uses a dedicated test ID when available. OCR text is a visual fallback for legacy pages where the result has no stable DOM identifier."
+      },
+      "value_ref": null,
+      "output_ref": "${output.matched_account_number}",
+      "checkpoint": null,
+      "is_risky": false
+    },
+
+    {
+      "step_id": "confirm_results_loaded",
+      "intent": "Confirm Account Results",
+      "action_type": "click",
+      "target": {
+        "primary_locator": {
+          "type": "accessibility_role",
+          "value": "button",
+          "name": "Continue",
+          "role": "button",
+          "tag": "button"
+        },
+        "fallback_locator": {
+          "type": "coordinates",
+          "value": "viewport",
+          "name": "Continue",
+          "role": "button",
+          "tag": "button",
+          "x": 900.0,
+          "y": 520.0,
+          "width": 90.0,
+          "height": 30.0
+        },
+        "robustness_reasoning": "Uses semantic button identification first and coordinates only if the current layout can re-identify the same visible control."
+      },
+      "value_ref": null,
+      "output_ref": null,
+      "checkpoint": {
+        "type": "text_exists",
+        "target": null,
+        "value": "Account details loaded"
+      },
+      "is_risky": true
+    }
+  ],
+
+  "global_success_condition": {
+    "type": "text_exists",
+    "target": null,
+    "value": "Account details loaded"
+  },
+
+  "error_handling": {
+    "expected_business_outcomes": [
+      {
+        "trigger_condition": {
+          "type": "text_exists",
+          "target": null,
+          "value": "No account found"
+        },
+        "result_status": "not_found",
+        "message": "No account matched the supplied search criteria."
+      }
+    ],
+    "recoverable_conditions": [
+      {
+        "trigger_condition": "timeout",
+        "action": "retry_step",
+        "max_retries": 2
+      },
+      {
+        "trigger_condition": "element_not_found",
+        "action": "wait",
+        "max_retries": 1
+      }
+    ]
+  }
+}
+
+
+PART 2: FIELD-BY-FIELD EXPLANATION
+===================================
+
+ROOT ARTIFACT FIELDS
+--------------------
+
+version
+Example: "1.0.0"
+
+Identifies the artifact contract version. It allows the executor or future
+migration code to distinguish the current schema from older artifact formats.
+This is important when the locator model or error-handling model changes.
+
+capability_name
+Example: "search_account"
+
+Provides a stable identifier for the capability. It is used for artifact file
+naming, logging, debugging, and selecting the correct automation contract.
+
+The name describes the business capability, not the implementation details.
+
+ description
+Example: "Opens an account search form..."
+
+Explains what the artifact does in human-readable language. This helps an
+operator understand the artifact without reading every action and provides
+context during HITL escalation.
+
+
+INPUTS_SCHEMA
+-------------
+
+inputs_schema.type
+Example: "object"
+
+States that the capability receives a named collection of input values rather
+than one anonymous value.
+
+inputs_schema.properties
+
+Defines each accepted input and its expected data type. The executor uses this
+information to validate incoming values before opening or modifying the page.
+
+inputs_schema.properties.account_number
+
+The name of the input variable. It is referenced by an action through:
+
+${input.account_number}
+
+inputs_schema.properties.account_number.type
+
+Declares that account_number must be text. The current executor validates this
+basic type before execution.
+
+inputs_schema.required
+
+Lists inputs that must be present. Missing required values are rejected before
+any browser action starts, preventing partial execution.
+
+Why input references are used:
+
+The artifact records the workflow but does not store live secrets or fixed
+credential values. Values are injected at replay time. This keeps the artifact
+reusable and reduces the chance of recording sensitive data in the artifact.
+
+
+OUTPUTS_SCHEMA
+--------------
+
+outputs_schema.type
+
+States that the capability returns a named object of output values.
+
+outputs_schema.properties
+
+Describes data produced during execution. In this example, the result page
+contains an account number that is extracted by one action.
+
+outputs_schema.required
+
+States which outputs the caller should expect after successful execution.
+
+Why output references are used:
+
+An extraction action writes its value using:
+
+${output.matched_account_number}
+
+This separates page interaction from the result returned to the caller.
+
+
+STEPS
+-----
+
+steps
+
+An ordered list of actions. Order is important because browser workflows are
+stateful: the search form must be opened before it can be filled, and the
+results must exist before data can be extracted.
+
+Each step contains the following fields.
+
+step_id
+Example: "enter_account_number"
+
+A stable identifier for one action. It is used in logs, error messages, HITL
+messages, retries, and debugging. It should be unique within an artifact.
+
+intent
+Example: "Type Account Number"
+
+A human-readable description of the action. It helps operators understand what
+the automation is doing and makes failure messages more useful than raw XPath
+or exception text.
+
+It is intentionally separate from step_id: step_id is stable and machine
+oriented, while intent is readable and can be improved without changing the
+workflow identity.
+
+action_type
+
+Defines what the executor must do. Supported values in the current design are:
+
+- click: activate a link, button, or other clickable control.
+- type_text: enter a text value into a field.
+- select_dropdown: choose a value from a native select control.
+- extract_data: read text or data from a target element.
+- navigate: represent a navigation action in the artifact contract.
+
+target
+
+Describes the UI element used by the action. It is optional in the Pydantic
+model, but the current deterministic executor requires a target for executable
+browser actions.
+
+A target contains primary_locator, fallback_locator, and
+robustness_reasoning.
+
+
+LOCATOR FIELDS
+--------------
+
+primary_locator
+
+The first locator strategy attempted by the executor. It should be the most
+stable and semantic selector available.
+
+Examples include:
+
+- accessibility_role for role/name based targeting.
+- xpath for observed stable attributes.
+- test_id for an application-provided test identifier.
+- ocr_text for visual text matching.
+- coordinates for a viewport position.
+
+The design tries DOM and semantic targeting before coordinates because DOM
+locators survive scrolling and most layout changes.
+
+primary_locator.type
+
+Declares which resolution strategy should be used. The value is restricted to
+known locator types so invalid strategies can be rejected during artifact
+validation.
+
+primary_locator.value
+
+Contains the strategy-specific value. Examples:
+
+- XPath: //input[@name='accountNumber']
+- Role: button
+- Test ID: matched-account-number
+- OCR text: Matched account number
+- Coordinates: viewport
+
+primary_locator.name
+
+Stores the accessible or visible name when one exists. It helps with
+accessibility-role matching and gives the coordinate refresh logic an identity
+for finding the same element again.
+
+primary_locator.role
+
+Stores the observed accessibility role, such as button, link, textbox, or
+combobox. It supports semantic matching and documents what type of control was
+observed.
+
+primary_locator.tag
+
+Stores the observed HTML tag, such as input, button, a, select, or span. It
+helps prevent a locator refresh from matching a visually similar but unrelated
+control.
+
+fallback_locator
+
+An independent second locator strategy. It is attempted only after the primary
+strategy cannot find the target.
+
+The fallback should not simply repeat the primary locator. A duplicate XPath
+would fail for the same reason and would not add resilience.
+
+Good combinations include:
+
+- XPath primary plus accessibility role fallback.
+- Test ID primary plus OCR text fallback.
+- DOM locator primary plus refreshed coordinates fallback.
+
+fallback_locator.x and fallback_locator.y
+
+The captured viewport position of the element at discovery time. These values
+are not assumed to remain valid forever. During replay, the system should use
+the saved name, role, tag, and original position to find the current element,
+then use its refreshed rectangle.
+
+fallback_locator.width and fallback_locator.height
+
+The captured size of the element. The center of the current refreshed rectangle
+is used for coordinate interaction. Width and height also help validate that a
+matched element is plausibly the same control.
+
+Why coordinates are fallback-only:
+
+Coordinates are relative to the current viewport. Scrolling, responsive
+layout, browser size, banners, and dynamic content can move the element. A
+fresh spatial capture must therefore be preferred over blindly clicking the
+old x/y values.
+
+robustness_reasoning
+
+Explains why the chosen locator pair is appropriate. This makes the artifact
+reviewable and records the design decision made during discovery. It should
+mention which locator is primary, why the fallback is different, and any known
+limitations.
+
+
+CHECKPOINTS
+-----------
+
+checkpoint
+
+An optional verification condition attached to an individual action. It proves
+that the expected state transition happened before the executor continues.
+
+For example, after clicking Account Search, the checkpoint verifies that the
+Account number textbox is visible.
+
+checkpoint.type
+
+Supported values are:
+
+- element_visible: a target element must be visible.
+- text_exists: specific text must be visible on the page.
+- url_match: the current page URL must match the expected value or pattern used
+  by the adapter.
+
+checkpoint.target
+
+Used by element_visible checkpoints. It has the same target structure as an
+action target, including primary and optional fallback locators.
+
+checkpoint.value
+
+Used by text_exists and url_match checkpoints. It contains the expected text
+or URL value.
+
+Why checkpoints are included:
+
+Without checkpoints, the executor could click a control successfully but still
+continue from the wrong page or after an application-level failure. Checkpoints
+turn each important transition into a verified state change.
+
+
+value_ref
+Example: "${input.account_number}"
+
+Connects an action to a runtime input. The action does not store the actual
+account number. During replay, the executor resolves the variable name from
+the supplied input object.
+
+This is used by type_text and select_dropdown actions.
+
+output_ref
+Example: "${output.matched_account_number}"
+
+Connects an extraction action to a runtime output. The extracted value is
+stored under the named output field and returned to the caller.
+
+checkpoint on an action
+
+Allows verification immediately after the action instead of waiting until the
+end of the entire workflow. This localizes failures and makes retries safer.
+
+is_risky
+
+Marks actions that may require human approval. In the example, Continue is
+marked risky to demonstrate the guardrail path. A real system might mark
+financial transfers, deletions, submissions, or irreversible changes as risky.
+
+When true, the HITL tracker can pause before the action and request approval.
+
+
+GLOBAL_SUCCESS_CONDITION
+------------------------
+
+global_success_condition
+
+The final condition that must be true after all steps finish. It is a final
+contract-level verification, not merely a record that the last click happened.
+
+In the example, the system must see "Account details loaded" before returning
+success.
+
+Why it is needed:
+
+A browser action can complete without achieving the business goal. The global
+condition prevents false success when the page shows an error, remains on the
+login form, or navigates somewhere unexpected.
+
+
+ERROR_HANDLING
+--------------
+
+error_handling
+
+Groups expected business results and technical/recoverable conditions into a
+structured policy.
+
+expected_business_outcomes
+
+Lists valid application outcomes that are not automation crashes. For example,
+"No account found" means the application worked but found no matching record.
+
+Each business outcome contains:
+
+trigger_condition
+
+The checkpoint or visible condition that identifies the outcome.
+
+result_status
+
+The machine-readable status returned to the caller, such as not_found.
+
+message
+
+The human-readable explanation shown to the operator or API caller.
+
+Why business outcomes are separate:
+
+An invalid account or empty search result should not be reported as a broken
+browser automation run. Separating business results makes integrations and
+operator messages clearer.
+
+recoverable_conditions
+
+Lists technical problems that may be retried or waited through.
+
+trigger_condition
+
+The supported technical trigger. The current model supports timeout and
+element_not_found.
+
+action
+
+The recovery policy. retry_step means execute the failed step again. wait means
+allow the page or operator time to make the target available before trying
+again.
+
+max_retries
+
+Limits automatic recovery so the system does not loop forever. If recovery is
+not successful within this limit, the system can escalate to HITL or return a
+failure.

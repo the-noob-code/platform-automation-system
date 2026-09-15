@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Transaction History{% endblock %}
+
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+
+{% block content %}
+<table>
+  <tr><td><b>Transaction History</b></td></tr>
+  <tr><td><span class="busy">Loading transaction history&hellip;</span></td></tr>
+  <tr><td><span class="err" style="display:none"></span></td></tr>
+  <tr><td>
+    <table class="history-table">
+      <tr><td><b>Date</b></td><td><b>Description</b></td><td><b>Account</b></td><td><b>Amount</b></td></tr>
+    </table>
+  </td></tr>
+</table>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var busySpan = document.querySelector('.busy');
+  var errSpan = document.querySelector('.err');
+  var historyTable = document.querySelector('table.history-table');
+
+  function loadHistory() {
+    busySpan.style.display = 'inline';
+    errSpan.style.display = 'none';
+    errSpan.textContent = '';
+
+    fetch('/api/history')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        busySpan.style.display = 'none';
+        if (data.status === 'session_expired') {
+          window.location.href = '/login';
+          return;
+        }
+        if (data.status !== 'ok') {
+          errSpan.textContent = data.message;
+          errSpan.style.display = 'inline';
+          return;
+        }
+        if (data.transactions.length === 0) {
+          var emptyRow = document.createElement('tr');
+          emptyRow.innerHTML = '<td colspan="4"><i>No transactions yet.</i></td>';
+          historyTable.appendChild(emptyRow);
+          return;
+        }
+        data.transactions.forEach(function (t) {
+          var row = document.createElement('tr');
+          var amtColor = t.amount < 0 ? '#b00000' : '#006400';
+          var sign = t.amount < 0 ? '-' : '+';
+          row.innerHTML =
+            '<td>' + t.date + '</td>' +
+            '<td>' + t.description + '</td>' +
+            '<td>' + t.account + '</td>' +
+            '<td style="color:' + amtColor + '">' + sign + '$' + Math.abs(t.amount).toFixed(2) + '</td>';
+          historyTable.appendChild(row);
+        });
+      })
+      .catch(function () {
+        busySpan.style.display = 'none';
+        errSpan.textContent = 'System Error \u2014 Unable to Load History (500)';
+        errSpan.style.display = 'inline';
+      });
+  }
+
+  loadHistory();
+})();
+</script>
+{% endblock %}

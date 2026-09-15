@@ -1,0 +1,13 @@
+[project]
+name = "legacy-bank-proxy"
+version = "0.1.0"
+description = "Deliberately hostile local legacy-banking test fixture for browser-automation / agentic discovery engines."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "jinja2>=3.1.4",
+]
+
+[tool.uv]
+package = false

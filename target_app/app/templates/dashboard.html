@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Dashboard{% endblock %}
+
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+
+{% block content %}
+<table>
+  <tr><td colspan="2"><b>Welcome, {{ member.name }}</b></td></tr>
+  <tr><td colspan="2"><br></td></tr>
+  <tr><td colspan="2"><b>Account Summary</b></td></tr>
+  <tr>
+    <td>
+      <table class="field-table">
+        <tr><td>Checking:</td><td>${{ "%.2f"|format(member.accounts["checking"].balance) }}</td></tr>
+        <tr><td>Savings:</td><td>${{ "%.2f"|format(member.accounts["savings"].balance) }}</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{% endblock %}

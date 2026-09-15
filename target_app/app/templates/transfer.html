@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Transfer{% endblock %}
+
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+
+{% block content %}
+<table>
+  <tr><td><b>Transfer Funds</b></td></tr>
+  <tr><td>
+    <table class="field-table">
+      <tr>
+        <td>From Account:</td>
+        <td>
+          <select>
+            <option value="checking">Checking (${{ "%.2f"|format(member.accounts["checking"].balance) }})</option>
+            <option value="savings">Savings (${{ "%.2f"|format(member.accounts["savings"].balance) }})</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>To Account:</td>
+        <td>
+          <select>
+            <option value="savings">Savings</option>
+            <option value="checking">Checking</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>Amount:</td>
+        <td><input type="text" placeholder="0.00" /></td>
+      </tr>
+      <tr><td colspan="2"><button class="go-btn">Transfer</button></td></tr>
+      <tr><td colspan="2"><span class="err" style="display:none"></span></td></tr>
+      <tr><td colspan="2"><span class="busy" style="display:none">Processing transaction, please wait&hellip;</span></td></tr>
+    </table>
+  </td></tr>
+</table>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var ALERT_PROBABILITY = {{ alert_probability }};
+  var CHAOS_MODE = {{ "true" if chaos_mode else "false" }};
+
+  var panel = document.querySelectorAll('table.field-table')[0];
+  var selects = panel.querySelectorAll('select');
+  var fromSelect = selects[0];
+  var toSelect = selects[1];
+  var amountInput = panel.querySelector('input[type=text]');
+  var button = panel.querySelector('button');
+  var errSpan = panel.querySelector('.err');
+  var busySpan = panel.querySelector('.busy');
+
+  function submitTransfer() {
+    errSpan.style.display = 'none';
+    errSpan.textContent = '';
+    busySpan.style.display = 'inline';
+    button.disabled = true;
+
+    fetch('/api/transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_account: fromSelect.value,
+        to_account: toSelect.value,
+        amount: amountInput.value.trim()
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        busySpan.style.display = 'none';
+        button.disabled = false;
+        if (data.status === 'ok') {
+          window.location.href = data.redirect;
+        } else if (data.status === 'session_expired') {
+          window.location.href = '/login';
+        } else {
+          errSpan.textContent = data.message;
+          errSpan.style.display = 'inline';
+        }
+      })
+      .catch(function () {
+        // r.json() throws here when the server sends back a plain-text
+        // 500 (an actual unhandled crash) instead of a JSON body.
+        busySpan.style.display = 'none';
+        button.disabled = false;
+        errSpan.textContent = 'System Error \u2014 Transaction Failed (500)';
+        errSpan.style.display = 'inline';
+      });
+  }
+
+  function attemptTransfer() {
+    // Human-escalation trap: sometimes the button just throws a blocking
+    // native dialog instead of doing anything. Nothing after alert()
+    // runs until a human (or dialog-aware automation) dismisses it, and
+    // even then the transfer is NOT auto-retried -- the operator has to
+    // press Transfer again, same as a real manager-override workflow.
+    if (CHAOS_MODE && Math.random() < ALERT_PROBABILITY) {
+      alert('Manager Override Required');
+      return;
+    }
+    submitTransfer();
+  }
+
+  button.addEventListener('click', function (e) {
+    e.preventDefault();
+    attemptTransfer();
+  });
+  amountInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      attemptTransfer();
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Account Details{% endblock %}
+
+{% block content %}
+<table>
+  <tr><td colspan="2"><b>Account Holder</b></td></tr>
+  <tr>
+    <td>
+      <table class="field-table">
+        <tr><td>Name:</td><td>{{ member.name }}</td></tr>
+        <tr><td>Member ID:</td><td>{{ member.member_id }}</td></tr>
+        <tr><td>Current Balance:</td><td>${{ "%.2f"|format(member.balance) }}</td></tr>
+      </table>
+    </td>
+  </tr>
+  <tr><td colspan="2"><hr></td></tr>
+  <tr><td colspan="2"><b>Transfer Funds</b></td></tr>
+  <tr>
+    <td>
+      <table class="field-table">
+        <tr>
+          <td>Transfer Amount:</td>
+          <td><input type="text" placeholder="0.00" /></td>
+          <td><button class="go-btn">Transfer</button></td>
+        </tr>
+        <tr><td colspan="3"><span class="err" style="display:none"></span></td></tr>
+        <tr><td colspan="3"><span class="busy" style="display:none">Processing transaction, please wait&hellip;</span></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var MEMBER_ID = "{{ member.member_id }}";
+  var ALERT_PROBABILITY = {{ alert_probability }};
+  var CHAOS_MODE = {{ "true" if chaos_mode else "false" }};
+
+  var tables = document.querySelectorAll('table.field-table');
+  var panel = tables[1];
+  var input = panel.querySelector('input[type=text]');
+  var button = panel.querySelector('button');
+  var errSpan = panel.querySelector('.err');
+  var busySpan = panel.querySelector('.busy');
+
+  function submitTransfer() {
+    errSpan.style.display = 'none';
+    errSpan.textContent = '';
+    busySpan.style.display = 'inline';
+    button.disabled = true;
+
+    fetch('/api/transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: MEMBER_ID, amount: input.value.trim() })
+    })
+      .then(function (r) {
+        if (r.status >= 500) { throw new Error('server_crash'); }
+        return r.json();
+      })
+      .then(function (data) {
+        busySpan.style.display = 'none';
+        button.disabled = false;
+        if (data.status === 'ok') {
+          window.location.href = data.redirect;
+        } else {
+          errSpan.textContent = data.message;
+          errSpan.style.display = 'inline';
+        }
+      })
+      .catch(function () {
+        busySpan.style.display = 'none';
+        button.disabled = false;
+        errSpan.textContent = 'System Error \u2014 Transaction Failed (500)';
+        errSpan.style.display = 'inline';
+      });
+  }
+
+  function attemptTransfer() {
+    // Human-escalation trap: sometimes the button just throws a blocking
+    // native dialog instead of doing anything. Nothing after alert()
+    // runs until a human (or dialog-aware automation) dismisses it, and
+    // even then the transfer is NOT auto-retried -- the operator has to
+    // press Transfer again, same as a real manager-override workflow.
+    if (CHAOS_MODE && Math.random() < ALERT_PROBABILITY) {
+      alert('Manager Override Required');
+      return;
+    }
+    submitTransfer();
+  }
+
+  button.addEventListener('click', function (e) {
+    e.preventDefault();
+    attemptTransfer();
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      attemptTransfer();
+    }
+  });
+})();
+</script>
+{% endblock %}

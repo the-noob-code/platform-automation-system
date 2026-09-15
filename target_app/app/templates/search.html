@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Search{% endblock %}
+
+{% block content %}
+<table class="field-table">
+  <tr><td colspan="3"><b>Member Search</b></td></tr>
+  <tr>
+    <td>Member ID:</td>
+    <td><input type="text" placeholder="e.g. 1001" /></td>
+    <td><button class="go-btn">Search</button></td>
+  </tr>
+  <tr><td colspan="3"><span class="err" style="display:none"></span></td></tr>
+</table>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var table = document.querySelectorAll('table.field-table')[0];
+  var input = table.querySelector('input[type=text]');
+  var button = table.querySelector('button');
+  var errSpan = table.querySelector('.err');
+
+  function doSearch() {
+    errSpan.style.display = 'none';
+    errSpan.textContent = '';
+    var memberId = input.value.trim();
+
+    fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: memberId })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          window.location.href = data.redirect;
+        } else {
+          errSpan.textContent = data.message;
+          errSpan.style.display = 'inline';
+        }
+      })
+      .catch(function () {
+        errSpan.textContent = 'Connection Error \u2014 Please Retry';
+        errSpan.style.display = 'inline';
+      });
+  }
+
+  button.addEventListener('click', function (e) {
+    e.preventDefault();
+    doSearch();
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    }
+  });
+})();
+</script>
+{% endblock %}

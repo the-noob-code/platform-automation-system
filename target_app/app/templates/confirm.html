@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}MemberNet :: Confirmation{% endblock %}
+
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+
+{% block content %}
+<table class="field-table">
+  <tr><td class="success">Transaction Successful</td></tr>
+  <tr><td>From: {{ from_account|title }}</td></tr>
+  <tr><td>To: {{ to_account|title }}</td></tr>
+  <tr><td>Amount Transferred: ${{ "%.2f"|format(amount) }}</td></tr>
+  <tr><td>New {{ from_account|title }} Balance: ${{ "%.2f"|format(member.accounts[from_account].balance) }}</td></tr>
+  <tr><td>New {{ to_account|title }} Balance: ${{ "%.2f"|format(member.accounts[to_account].balance) }}</td></tr>
+  <tr><td><a href="/dashboard">Back to Dashboard</a></td></tr>
+</table>
+{% endblock %}
