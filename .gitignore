@@ -21,6 +21,17 @@ evidence/
 *.jpeg
 *.png
 
+# Approved pre-recorded evidence for the repository
+!evidence/
+!evidence/discovery_run.log
+!evidence/replay_run.log
+!evidence/saved_artifact.json
+!evidence/discovery_step_0.jpg
+!evidence/discovery_step_1.jpg
+!evidence/discovery_step_2.jpg
+!evidence/discovery_step_3.jpg
+!evidence/discovery_step_4.jpg
+
 # Editor and operating-system files
 .vscode/
 .idea/

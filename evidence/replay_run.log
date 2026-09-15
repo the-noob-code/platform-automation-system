@@ -1,0 +1,2 @@
+Starting replay of parabank_login with inputs: ['username', 'password']
+Result: {"status": "success", "data": {}}
